@@ -4,25 +4,25 @@ I've tested to make sure everything works and made a couple changes/fixes, but 9
 
 # WooCommerce Privacy Cleaner & Compliance Archiver
 
-A lightweight, zero-dependency PHP snippet for WooCommerce that automatically scrubs Personal Identifiable Information (PII) from old orders while securely pushing encrypted, off-site backups via Webhooks (Discord, Telegram, Google Sheets) and Email. 
+A lightweight, PHP snippet for WooCommerce that automatically removes Personal Identifiable Information (PII) from old orders while keeping secure, off-site backups via Webhooks (Discord, Telegram, Google Sheets) and Email. 
 
-Designed for store owners who want to maintain strict data privacy (GDPR/CCPA compliance) without losing their financial and auditing records.
+Designed for store owners who want to maintain strict data privacy without losing financial and auditing records. The less data on your site, the less there is to leak in a hack.
 
 ## Features
 * **Zero-Storage Policy:** Generates backups, transmits them over API, and instantly runs `unlink()` to destroy the physical files from your server. No sensitive data is left sitting in your `wp-content` folders.
-* **AES-256 ZIP Encryption:** Wraps CSV backups in AES-256 encrypted `.zip` archives before transmission. If your Discord, Telegram, or Email gets compromised, your data remains locked. Built-in secure password generator included.
+* **AES-256 ZIP Encryption:** Wraps CSV backups in AES-256 encrypted `.zip` archives before transmission. If your Discord, Telegram, or Email gets compromised, your data remains locked. Built-in secure password generator.
 * **Multi-Channel Off-Site Backups:**
   * **Google Sheets Webhook:** Appends order data row-by-row via a secure JSON payload (no direct database/API keys required).
   * **Discord:** Uploads the encrypted ZIP to a private channel via Webhook.
   * **Telegram:** Delivers the encrypted ZIP directly to a private chat or group via Bot API.
   * **Email:** Sends the encrypted archive directly to your inbox.
-* **Granular Retention Rules:** Set an exact retention period (e.g., 30 days) so you maintain full customer data during the refund/chargeback window before the scrub triggers.
-* **Dark-Mode UI:** A clean, native settings dashboard seamlessly integrated into your WordPress admin panel under **Tools > Privacy Cleaner**.
+* **Granular Retention Rules:** Set an exact retention period (e.g., 69 days) so you maintain full customer data during the refund/chargeback window before the scrub triggers.
+* **Dark-Mode UI:** A native settings dashboard seamlessly integrated into your WordPress admin panel under **Tools > Privacy Cleaner**.
 * **Failsafes & Testing:** Includes a "Test API Connections" button to verify your webhooks with dummy data, and a "Backup Only" manual override to pull data without deleting anything.
 
 ## Installation
 
-You do not need to install this as a plugin. It is designed to run as a standalone snippet. There are two ways to install it:
+You don't need to install this as a plugin. It's designed to run as a standalone snippet. There are two ways to install it:
 
 ### Method A: 1-Click Import (Fluent Snippets)
 If you use the free [Fluent Snippets](https://wordpress.org/plugins/fluent-snippets/) plugin, you can import the pre-configured script instantly.
