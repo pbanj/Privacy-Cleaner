@@ -423,7 +423,7 @@ function clean_purge_engine( $do_scrub = true, $limit = 500 ) {
             }
 
             $needs_save   = false;
-            $is_backed_up = ( $order->get_meta( '_info_backed_up' ) === 'yes' );
+            $is_backed_up = ( $order->get_meta( 'info_backed_up' ) === 'yes' );
 
             if ( ! $is_backed_up ) {
                 $row_data = array(
@@ -446,7 +446,7 @@ function clean_purge_engine( $do_scrub = true, $limit = 500 ) {
                     fputcsv( $file, $row_data );
                 }
 
-                $order->update_meta_data( '_info_backed_up', 'yes' );
+                $order->update_meta_data( 'info_backed_up', 'yes' );
                 $needs_save = true;
                 $total_backed_up++;
             }
