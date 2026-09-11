@@ -60,13 +60,24 @@ function clean_add_orders_page_shortcut() {
 // --- 2. DARK UI SETTINGS DASHBOARD ---
 
 function ui_settings_page() {
+    // Hidden config unhide listener
+    if ( isset( $_GET['reset_first_run'] ) ) {
+        delete_option( 'clean_first_run_executed' );
+    }
+
     if ( isset( $_POST['clean_manual_trigger'] ) && check_admin_referer( 'clean_run_now_nonce' ) ) {
-        clean_purge_engine( true );
+        clean_purge_engine( true, 500 );
         echo '<div class="notice notice-success is-dismissible" style="background: #1a1a1a; border-left-color: #a855f7; color: #fff;"><p><strong>Purge & Backup executed. Check logs/chats for backup status.</strong></p></div>';
     }
     if ( isset( $_POST['clean_manual_backup_trigger'] ) && check_admin_referer( 'clean_run_now_nonce' ) ) {
-        clean_purge_engine( false );
-        echo '<div class="notice notice-success is-dismissible" style="background: #1a1a1a; border-left-color: #3b82f6; color: #fff;"><p><strong>Backup-Only executed. No data was deleted. Check logs/chats.</strong></p></div>';
+        clean_purge_engine( false, 500 );
+        echo '<div class="notice notice-success is-dismissible" style="background: #1a1a1a; border-left-color: #3b82f6; color: #fff;"><p><strong>Backup-Only (500 limit) executed. No data was deleted. Check logs/chats.</strong></p></div>';
+    }
+    if ( isset( $_POST['clean_manual_backup_all'] ) && check_admin_referer( 'clean_run_now_nonce' ) ) {
+        if ( function_exists('set_time_limit') ) { set_time_limit(0); }
+        clean_purge_engine( false, -1 );
+        update_option( 'clean_first_run_executed', 'yes' );
+        echo '<div class="notice notice-success is-dismissible" style="background: #1a1a1a; border-left-color: #0ea5e9; color: #fff;"><p><strong>First Run (All Orders) Backup executed. No data was deleted. Check logs/chats.</strong></p></div>';
     }
     if ( isset( $_POST['clean_test_integrations'] ) && check_admin_referer( 'clean_run_now_nonce' ) ) {
         clean_run_test_integrations();
@@ -114,6 +125,26 @@ function ui_settings_page() {
         .clean-btn-danger:hover { background: #ef4444 !important; color: #fff !important; }
     </style>
 
+    <script>
+        function generateSecurePassword() {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            let password = "";
+            const array = new Uint32Array(24);
+            window.crypto.getRandomValues(array);
+            for (let i = 0; i < array.length; i++) {
+                password += chars[array[i] % chars.length];
+            }
+            const passField = document.getElementById('clean_zip_pass');
+            passField.value = password;
+            passField.type = 'text'; 
+        }
+        
+        function toggleField(fieldId) {
+            const field = document.getElementById(fieldId);
+            field.type = field.type === 'password' ? 'text' : 'password';
+        }
+    </script>
+
     <div class="wrap">
         <div class="clean-dark-wrap">
             <h1>🛡️ Personal Data Cleaner</h1>
@@ -134,7 +165,10 @@ function ui_settings_page() {
                     <tr>
                         <th scope="row">Google Sheets Webhook URL</th>
                         <td>
-                            <input type="text" name="clean_backup_webhook" value="<?php echo esc_attr( $backup_webhook ); ?>" placeholder="https://script.google.com/macros/s/.../exec" />
+                            <div style="display: flex; gap: 8px; align-items: center; max-width: 450px;">
+                                <input type="password" id="clean_gs_webhook" name="clean_backup_webhook" value="<?php echo esc_attr( $backup_webhook ); ?>" placeholder="https://script.google.com/macros/s/.../exec" />
+                                <button type="button" onclick="toggleField('clean_gs_webhook')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #aaa;" title="Show/Hide">👁️</button>
+                            </div>
                             <p class="description">Secure POST endpoint. Safely appends rows to a spreadsheet.</p>
                             
                             <details style="margin-top: 12px; background: #1a1a1a; padding: 12px; border-radius: 6px; border: 1px solid #333;">
@@ -174,50 +208,38 @@ function doPost(e) {
                         <th scope="row">Discord Webhook Alerts</th>
                         <td>
                             <p style="color: #ef4444; font-weight: bold; margin-top: 0; margin-bottom: 5px;">⚠️ WARNING: Ensure this webhook points to a strictly PRIVATE channel.</p>
-                            <input type="text" name="clean_backup_discord" value="<?php echo esc_attr( $backup_discord ); ?>" placeholder="https://discord.com/api/webhooks/..." />
+                            <div style="display: flex; gap: 8px; align-items: center; max-width: 450px;">
+                                <input type="password" id="clean_discord_webhook" name="clean_backup_discord" value="<?php echo esc_attr( $backup_discord ); ?>" placeholder="https://discord.com/api/webhooks/..." />
+                                <button type="button" onclick="toggleField('clean_discord_webhook')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #aaa;" title="Show/Hide">👁️</button>
+                            </div>
                             <p class="description">Uploads the ZIP archive directly to your Discord channel.</p>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">Telegram Bot Alerts</th>
                         <td>
-                            <input type="text" name="clean_backup_telegram_token" value="<?php echo esc_attr( $backup_tele_token ); ?>" placeholder="Bot Token (e.g., 123456:ABCdef...)" style="margin-bottom: 8px;" /><br/>
-                            <input type="text" name="clean_backup_telegram_chat" value="<?php echo esc_attr( $backup_tele_chat ); ?>" placeholder="Chat ID (e.g., -1001234567)" />
+                            <div style="display: flex; gap: 8px; align-items: center; max-width: 450px; margin-bottom: 8px;">
+                                <input type="password" id="clean_tele_token" name="clean_backup_telegram_token" value="<?php echo esc_attr( $backup_tele_token ); ?>" placeholder="Bot Token (e.g., 123456:ABCdef...)" />
+                                <button type="button" onclick="toggleField('clean_tele_token')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #aaa;" title="Show/Hide">👁️</button>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center; max-width: 450px;">
+                                <input type="password" id="clean_tele_chat" name="clean_backup_telegram_chat" value="<?php echo esc_attr( $backup_tele_chat ); ?>" placeholder="Chat ID (e.g., -1001234567)" />
+                                <button type="button" onclick="toggleField('clean_tele_chat')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #aaa;" title="Show/Hide">👁️</button>
+                            </div>
                             <p class="description">Uploads the ZIP archive directly to a private Telegram chat.</p>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">Archive Encryption (AES-256)</th>
                         <td>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="password" id="clean_zip_pass" name="clean_backup_zip_password" value="<?php echo esc_attr( $zip_pass ); ?>" placeholder="Leave blank for no password..." minlength="20" style="width: 100%; max-width: 300px; padding: 5px; background-color: #1e1e1e; color: #fff; border: 1px solid #444; border-radius: 4px;" />
+                            <div style="display: flex; gap: 8px; align-items: center; max-width: 450px;">
+                                <input type="password" id="clean_zip_pass" name="clean_backup_zip_password" value="<?php echo esc_attr( $zip_pass ); ?>" placeholder="Leave blank for no password..." minlength="20" />
                                 <button type="button" onclick="generateSecurePassword()" style="background: #1a1a1a; color: #a855f7; border: 1px solid #a855f7; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s ease;">Generate</button>
-                                <button type="button" onclick="toggleZipPassword()" style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #aaa;" title="Show/Hide Password">👁️</button>
+                                <button type="button" onclick="toggleField('clean_zip_pass')" style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #aaa;" title="Show/Hide">👁️</button>
                             </div>
                             <p class="description" style="color: #a855f7; margin-top: 8px;">
-                                <strong>Strongly Recommended:</strong> Must be at least <strong>20 characters</strong> long. <br/>
-                                <em>⚠️ If you generate a password, ensure you copy and save it to your password manager before hitting Save!</em>
+                                Must be at least <strong>20 characters</strong> long. <br/>
                             </p>
-
-                            <script>
-                                function generateSecurePassword() {
-                                    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-                                    let password = "";
-                                    const array = new Uint32Array(24);
-                                    window.crypto.getRandomValues(array);
-                                    for (let i = 0; i < array.length; i++) {
-                                        password += chars[array[i] % chars.length];
-                                    }
-                                    const passField = document.getElementById('clean_zip_pass');
-                                    passField.value = password;
-                                    passField.type = 'text'; 
-                                }
-                                
-                                function toggleZipPassword() {
-                                    const passField = document.getElementById('clean_zip_pass');
-                                    passField.type = passField.type === 'password' ? 'text' : 'password';
-                                }
-                            </script>
                         </td>
                     </tr>
                 </table>
@@ -278,14 +300,20 @@ function doPost(e) {
             </form>
 
             <div class="clean-card-dark">
-                <h2 style="color: #ef4444; border-bottom-color: #440000; margin-top:0;">Manual Override Engine</h2>
-                <p>Execute scripts manually. Processes up to 500 un-scrubbed orders per click.</p>
+                <h2 style="color: #ef4444; border-bottom-color: #440000; margin-top:0;">Manual Overrides</h2>
+                <p>Execute scripts manually. Processes up to 500 un-scrubbed orders per click (unless First Run is used).</p>
                 <form method="post" action="" style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
                     <?php wp_nonce_field( 'clean_run_now_nonce' ); ?>
                     <input type="submit" name="clean_test_integrations" class="button clean-btn-success" value="Test API Connections" onclick="return confirm('This will send a fake test order to all configured backups (Sheets, Discord, etc) to verify your credentials. Proceed?');" />
-                    <input type="submit" name="clean_manual_backup_trigger" class="button clean-btn-secondary" value="Execute Backup Only (Safe)" onclick="return confirm('This will generate and send a backup of unscrubbed orders without deleting any data. Proceed?');" />
+                    <input type="submit" name="clean_manual_backup_trigger" class="button clean-btn-secondary" value="Backup Only (500 limit)" onclick="return confirm('This will generate and send a backup of up to 500 unscrubbed orders without deleting any data. Proceed?');" />
+                    <?php if ( get_option( 'clean_first_run_executed', 'no' ) !== 'yes' ) : ?>
+                        <input type="submit" name="clean_manual_backup_all" class="button clean-btn-secondary" style="background: #0ea5e9 !important; border-color: #0284c7 !important;" value="First Run: Backup ALL Orders" onclick="return confirm('WARNING: This bypasses the 500 limit and grabs ALL unscrubbed orders matching your criteria. It may take a minute to process on large stores. Proceed?');" />
+                    <?php endif; ?>
                     <input type="submit" name="clean_manual_trigger" class="button clean-btn-danger" value="Execute System Purge Now" onclick="return confirm('Warning: This alters the database and permanently scrubs data. Proceed?');" />
                 </form>
+                <?php if ( get_option( 'clean_first_run_executed', 'no' ) === 'yes' ) : ?>
+                    <p style="font-size: 11px; color: #555; margin-top: 15px;">First run completed. <a href="<?php echo esc_url( admin_url( 'tools.php?page=cleaner-settings&reset_first_run=1' ) ); ?>" style="color: #555; text-decoration: underline;">Unhide the First Run button.</a></p>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -308,32 +336,20 @@ function clean_snippet_cron_setup() {
 
 add_action( 'clean_cron_hook', 'clean_purge_engine' );
 
+// --- 3. BATCH OPTIMIZED ENGINE (SCRUB & EXPORT) ---
 
-function clean_purge_engine( $do_scrub = true ) {
+function clean_purge_engine( $do_scrub = true, $limit = 500 ) {
     if ( ! is_bool( $do_scrub ) ) {
         $do_scrub = true; 
+    }
+    if ( ! is_numeric( $limit ) ) {
+        $limit = 500;
     }
 
     $target_statuses = get_option( 'clean_statuses', array( 'completed' ) );
     $order_age       = get_option( 'clean_order_age', '30' );
     
     if ( empty( $target_statuses ) ) return;
-
-$args = array(
-        'type'    => 'shop_order',
-        'status'  => $target_statuses,
-        'limit'   => 500,
-        'return'  => 'ids',
-        'orderby' => 'date',
-        'order'   => 'ASC',
-    );
-
-    if ( is_numeric( $order_age ) && $order_age > 0 ) {
-        $args['date_created'] = '<' . strtotime( '-' . absint( $order_age ) . ' days' );
-    }
-
-    $orders = wc_get_orders( $args );
-    if ( empty($orders) ) return;
 
     $drop_ips = get_option( 'clean_drop_ips', 'yes' );
     $remove_names = get_option( 'clean_remove_names', 'yes' );
@@ -350,80 +366,153 @@ $args = array(
     $backup_tele_chat = get_option( 'clean_backup_telegram_chat', '' );
     $zip_pass = get_option( 'clean_backup_zip_password', '' );
 
-    $backup_payload = array();
-    $purged_count = 0;
-
-    foreach ( $orders as $order_id ) {
-        $order = wc_get_order( $order_id );
-        if ( ! $order || $order->get_type() !== 'shop_order' || $order->get_meta( '_info_cleaned' ) === 'yes' ) {
-            continue;
-        }
-
-        $backup_payload[] = array(
-            'id'         => $order->get_order_number(),
-            'date'       => $order->get_date_created() ? $order->get_date_created()->date('Y-m-d H:i:s') : '',
-            'first_name' => $order->get_billing_first_name(),
-            'last_name'  => $order->get_billing_last_name(),
-            'email'      => $order->get_billing_email(),
-            'phone'      => $order->get_billing_phone() ? "'" . $order->get_billing_phone() : '',
-            'address'    => $order->get_billing_address_1() . ' ' . $order->get_billing_address_2(),
-            'city'       => $order->get_billing_city(),
-            'state'      => $order->get_billing_state(),
-            'postcode'   => $order->get_billing_postcode(),
-            'total'      => $order->get_total()
-        );
-
-        if ( $do_scrub ) {
-            if ( $remove_names === 'yes' ) {
-                $order->set_billing_first_name( 'Removed' ); $order->set_billing_last_name( 'Removed' );
-                $order->set_shipping_first_name( 'Removed' ); $order->set_shipping_last_name( 'Removed' );
-            }
-            if ( $remove_company === 'yes' ) { $order->set_billing_company( '' ); $order->set_shipping_company( '' ); }
-            if ( $remove_addresses === 'yes' ) {
-                $order->set_billing_address_1( 'Removed' ); $order->set_billing_address_2( '' );
-                $order->set_billing_city( 'Removed' ); $order->set_billing_state( '' ); $order->set_billing_postcode( '' );
-                $order->set_shipping_address_1( 'Removed' ); $order->set_shipping_address_2( '' );
-                $order->set_shipping_city( 'Removed' ); $order->set_shipping_state( '' ); $order->set_shipping_postcode( '' );
-            }
-            if ( $remove_phone === 'yes' ) { $order->set_billing_phone( '' ); }
-            if ( $remove_email === 'yes' ) { $order->set_billing_email( 'removed@domain.local' ); }
-            if ( $drop_ips === 'yes' ) { $order->set_customer_ip_address( '0.0.0.0' ); $order->set_customer_user_agent( 'Removed' ); }
-            if ( $remove_notes === 'yes' ) {
-                $notes = wc_get_order_notes( array( 'order_id' => $order_id ) );
-                foreach ( $notes as $note ) { wc_delete_order_note( $note->id ); }
-            }
-
-            $order->update_meta_data( '_info_cleaned', 'yes' );
-            $order->save();
-        }
-        $purged_count++;
+    $needs_file = ( is_email( $backup_email ) || ! empty( $backup_discord ) || ( ! empty( $backup_tele_token ) && ! empty( $backup_tele_chat ) ) );
+    
+    $csv_path = '';
+    $zip_path = '';
+    $file     = null;
+    
+    if ( $needs_file ) {
+        $upload_dir = wp_upload_dir();
+        $base_name  = 'backup_orders_' . time();
+        $csv_path   = trailingslashit( $upload_dir['basedir'] ) . $base_name . '.csv';
+        $zip_path   = trailingslashit( $upload_dir['basedir'] ) . $base_name . '.zip';
+        
+        $file = fopen( $csv_path, 'w' );
+        fputcsv( $file, array( 'Order ID', 'Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Total' ) );
     }
 
-    if ( ! empty( $backup_payload ) ) {
-        
-        $action_word = $do_scrub ? 'scrubbed' : 'backed up (data retained)';
+    $total_backed_up    = 0;
+    $total_scrubbed     = 0;
+    $processed_this_run = 0;
+    $offset             = 0;
+    $chunk_size         = 100; 
 
-        if ( ! empty( $backup_webhook ) ) {
+    while ( true ) {
+        $args = array(
+            'type'    => 'shop_order',
+            'status'  => $target_statuses,
+            'limit'   => $chunk_size,
+            'offset'  => $offset,
+            'return'  => 'ids',
+            'orderby' => 'date',
+            'order'   => 'ASC', 
+        );
+
+        if ( is_numeric( $order_age ) && $order_age > 0 ) {
+            $args['date_created'] = '<' . strtotime( '-' . absint( $order_age ) . ' days' );
+        }
+
+        $orders = wc_get_orders( $args );
+        
+        if ( empty( $orders ) ) {
+            break; 
+        }
+
+        $webhook_payload = array();
+
+        foreach ( $orders as $order_id ) {
+            if ( $limit !== -1 && $processed_this_run >= $limit ) {
+                break 2; 
+            }
+
+            $order = wc_get_order( $order_id );
+            
+            if ( ! $order || $order->get_type() !== 'shop_order' || $order->get_meta( '_info_cleaned' ) === 'yes' ) {
+                continue;
+            }
+
+            $needs_save   = false;
+            $is_backed_up = ( $order->get_meta( '_info_backed_up' ) === 'yes' );
+
+            if ( ! $is_backed_up ) {
+                $row_data = array(
+                    'id'         => $order->get_order_number(),
+                    'date'       => $order->get_date_created() ? $order->get_date_created()->date('Y-m-d H:i:s') : '',
+                    'first_name' => $order->get_billing_first_name(),
+                    'last_name'  => $order->get_billing_last_name(),
+                    'email'      => $order->get_billing_email(),
+                    'phone'      => $order->get_billing_phone() ? "'" . $order->get_billing_phone() : '',
+                    'address'    => trim( $order->get_billing_address_1() . ' ' . $order->get_billing_address_2() ),
+                    'city'       => $order->get_billing_city(),
+                    'state'      => $order->get_billing_state(),
+                    'postcode'   => $order->get_billing_postcode(),
+                    'total'      => $order->get_total()
+                );
+
+                $webhook_payload[] = $row_data;
+
+                if ( $needs_file && $file ) {
+                    fputcsv( $file, $row_data );
+                }
+
+                $order->update_meta_data( '_info_backed_up', 'yes' );
+                $needs_save = true;
+                $total_backed_up++;
+            }
+
+            if ( $do_scrub ) {
+                if ( $remove_names === 'yes' ) {
+                    $order->set_billing_first_name( 'Removed' ); $order->set_billing_last_name( 'Removed' );
+                    $order->set_shipping_first_name( 'Removed' ); $order->set_shipping_last_name( 'Removed' );
+                }
+                if ( $remove_company === 'yes' ) { $order->set_billing_company( '' ); $order->set_shipping_company( '' ); }
+                if ( $remove_addresses === 'yes' ) {
+                    $order->set_billing_address_1( 'Removed' ); $order->set_billing_address_2( '' );
+                    $order->set_billing_city( 'Removed' ); $order->set_billing_state( '' ); $order->set_billing_postcode( '' );
+                    $order->set_shipping_address_1( 'Removed' ); $order->set_shipping_address_2( '' );
+                    $order->set_shipping_city( 'Removed' ); $order->set_shipping_state( '' ); $order->set_shipping_postcode( '' );
+                }
+                if ( $remove_phone === 'yes' ) { $order->set_billing_phone( '' ); }
+                if ( $remove_email === 'yes' ) { $order->set_billing_email( 'removed@domain.local' ); }
+                if ( $drop_ips === 'yes' ) { $order->set_customer_ip_address( '0.0.0.0' ); $order->set_customer_user_agent( 'Removed' ); }
+                if ( $remove_notes === 'yes' ) {
+                    $notes = wc_get_order_notes( array( 'order_id' => $order_id ) );
+                    foreach ( $notes as $note ) { wc_delete_order_note( $note->id ); }
+                }
+
+                $order->update_meta_data( '_info_cleaned', 'yes' );
+                $needs_save = true;
+                $total_scrubbed++;
+            }
+
+            if ( $needs_save ) {
+                $order->save();
+                $processed_this_run++;
+            }
+            
+            unset( $order );
+        }
+
+        if ( ! empty( $backup_webhook ) && ! empty( $webhook_payload ) ) {
             wp_remote_post( $backup_webhook, array(
                 'headers' => array( 'Content-Type' => 'application/json' ),
-                'body'    => wp_json_encode( $backup_payload ),
+                'body'    => wp_json_encode( $webhook_payload ),
                 'timeout' => 15,
             ));
         }
 
-        $needs_file = ( is_email( $backup_email ) || ! empty( $backup_discord ) || ( ! empty( $backup_tele_token ) && ! empty( $backup_tele_chat ) ) );
-        
-        if ( $needs_file ) {
-            $upload_dir = wp_upload_dir();
-            $base_name  = 'backup_orders_' . time();
-            $csv_path   = trailingslashit( $upload_dir['basedir'] ) . $base_name . '.csv';
-            $zip_path   = trailingslashit( $upload_dir['basedir'] ) . $base_name . '.zip';
-            
-            $file = fopen( $csv_path, 'w' );
-            fputcsv( $file, array( 'Order ID', 'Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Total' ) );
-            foreach ( $backup_payload as $row ) { fputcsv( $file, $row ); }
-            fclose( $file );
+        if ( count( $orders ) < $chunk_size ) {
+            break; 
+        }
 
+        $offset += $chunk_size;
+
+        usleep( 250000 );
+        if ( function_exists( 'wc_free_memory' ) ) {
+            wc_free_memory(); 
+        }
+    }
+
+    if ( $needs_file && $file ) {
+        fclose( $file ); 
+    }
+
+    if ( $total_backed_up > 0 ) {
+        
+        $action_word = $do_scrub ? "scrubbed ({$total_scrubbed}), and backed up ({$total_backed_up})" : "backed up ({$total_backed_up} retained)";
+
+        if ( $needs_file ) {
             $export_file = $csv_path;
             $export_mime = 'text/csv';
 
@@ -440,12 +529,10 @@ $args = array(
                 }
             }
 
-            // Export to Email
             if ( is_email( $backup_email ) ) {
                 wp_mail( $backup_email, 'Encrypted Data Backup: WooCommerce', "Attached is the backup archive for the orders {$action_word} today.", '', array( $export_file ) );
             }
 
-            // Export to Discord
             if ( ! empty( $backup_discord ) ) {
                 $boundary = wp_generate_password( 24, false );
                 $payload  = "--{$boundary}\r\n";
@@ -453,7 +540,7 @@ $args = array(
                 $payload .= "Content-Type: {$export_mime}\r\n\r\n" . file_get_contents( $export_file ) . "\r\n";
                 $payload .= "--{$boundary}\r\n";
                 $payload .= "Content-Disposition: form-data; name=\"payload_json\"\r\n\r\n";
-                $payload .= wp_json_encode( array( 'content' => "🛡️ **Data Cleaner**\n`{$purged_count}` orders {$action_word}. Archive attached." ) ) . "\r\n";
+                $payload .= wp_json_encode( array( 'content' => "🛡️ **Data Cleaner**\nOrders {$action_word}. Archive attached." ) ) . "\r\n";
                 $payload .= "--{$boundary}--\r\n";
 
                 wp_remote_post( $backup_discord, array(
@@ -463,13 +550,12 @@ $args = array(
                 ));
             }
 
-            // Export to Telegram
             if ( ! empty( $backup_tele_token ) && ! empty( $backup_tele_chat ) ) {
                 $boundary = wp_generate_password( 24, false );
                 $payload  = "--{$boundary}\r\n";
                 $payload .= "Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n{$backup_tele_chat}\r\n";
                 $payload .= "--{$boundary}\r\n";
-                $payload .= "Content-Disposition: form-data; name=\"caption\"\r\n\r\n🛡️ Data Cleaner executed.\n{$purged_count} orders {$action_word}.\r\n";
+                $payload .= "Content-Disposition: form-data; name=\"caption\"\r\n\r\n🛡️ Data Cleaner executed.\nOrders {$action_word}.\r\n";
                 $payload .= "--{$boundary}\r\n";
                 $payload .= 'Content-Disposition: form-data; name="document"; filename="' . basename( $export_file ) . "\"\r\n";
                 $payload .= "Content-Type: {$export_mime}\r\n\r\n" . file_get_contents( $export_file ) . "\r\n";
@@ -481,15 +567,29 @@ $args = array(
                     'timeout' => 20,
                 ));
             }
-
-            // Auto-Destruct Files
-            if ( file_exists( $csv_path ) ) unlink( $csv_path );
-            if ( file_exists( $zip_path ) ) unlink( $zip_path );
         }
+    } elseif ( $total_scrubbed > 0 ) {
+        if ( ! empty( $backup_discord ) ) {
+            wp_remote_post( $backup_discord, array(
+                'headers' => array( 'Content-Type' => 'application/json' ),
+                'body'    => wp_json_encode( array( 'content' => "🛡️ **Data Cleaner**\n`{$total_scrubbed}` previously archived orders were permanently scrubbed today." ) )
+            ));
+        }
+        if ( ! empty( $backup_tele_token ) && ! empty( $backup_tele_chat ) ) {
+            wp_remote_post( "https://api.telegram.org/bot" . esc_attr( $backup_tele_token ) . "/sendMessage", array(
+                'headers' => array( 'Content-Type' => 'application/json' ),
+                'body'    => wp_json_encode( array( 'chat_id' => $backup_tele_chat, 'text' => "🛡️ Data Cleaner executed.\n{$total_scrubbed} previously archived orders were permanently scrubbed." ) )
+            ));
+        }
+    }
+
+    if ( $needs_file ) {
+        if ( file_exists( $csv_path ) ) unlink( $csv_path );
+        if ( file_exists( $zip_path ) ) unlink( $zip_path );
     }
 }
 
-// --- 5. TEST API CONNECTIONS FUNCTION ---
+// --- 4. TEST API CONNECTIONS FUNCTION ---
 
 function clean_run_test_integrations() {
     $backup_email = get_option( 'clean_backup_email', '' );
@@ -499,7 +599,6 @@ function clean_run_test_integrations() {
     $backup_tele_chat = get_option( 'clean_backup_telegram_chat', '' );
     $zip_pass = get_option( 'clean_backup_zip_password', '' );
 
-    // Generate dummy order data
     $backup_payload = array(
         array(
             'id'         => 'TEST-001',
@@ -507,7 +606,7 @@ function clean_run_test_integrations() {
             'first_name' => 'John',
             'last_name'  => 'Doe',
             'email'      => 'john.doe@example.com',
-            'phone'      => '555-0199',
+            'phone'      => "'+1 (555) 0199",
             'address'    => '123 Privacy St',
             'city'       => 'Secureville',
             'state'      => 'CA',
@@ -600,7 +699,7 @@ function clean_run_test_integrations() {
     }
 }
 
-// --- 6. SINGLE ORDER UI (QUICK SCRUB ONLY) ---
+// --- 5. SINGLE ORDER UI (QUICK SCRUB ONLY) ---
 
 add_filter( 'woocommerce_order_actions', 'clean_ui_manual_action' );
 function clean_ui_manual_action( $actions ) {

@@ -1,4 +1,6 @@
-Full disclosure. I used Gemini pro to make this snippet and the readme. I've tested to make sure everything works.
+## Full disclosure.  
+I used Gemini pro to make this snippet and the readme. 
+I've tested to make sure everything works and made a couple changes/fixes, but 99% was Gemini.
 
 # WooCommerce Privacy Cleaner & Compliance Archiver
 
