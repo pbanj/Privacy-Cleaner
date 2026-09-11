@@ -319,11 +319,13 @@ function clean_purge_engine( $do_scrub = true ) {
     
     if ( empty( $target_statuses ) ) return;
 
-    $args = array(
-        'type'   => 'shop_order',
-        'status' => $target_statuses,
-        'limit'  => 500,
-        'return' => 'ids',
+$args = array(
+        'type'    => 'shop_order',
+        'status'  => $target_statuses,
+        'limit'   => 500,
+        'return'  => 'ids',
+        'orderby' => 'date',
+        'order'   => 'ASC',
     );
 
     if ( is_numeric( $order_age ) && $order_age > 0 ) {
@@ -363,7 +365,7 @@ function clean_purge_engine( $do_scrub = true ) {
             'first_name' => $order->get_billing_first_name(),
             'last_name'  => $order->get_billing_last_name(),
             'email'      => $order->get_billing_email(),
-            'phone'      => $order->get_billing_phone(),
+            'phone'      => $order->get_billing_phone() ? "'" . $order->get_billing_phone() : '',
             'address'    => $order->get_billing_address_1() . ' ' . $order->get_billing_address_2(),
             'city'       => $order->get_billing_city(),
             'state'      => $order->get_billing_state(),

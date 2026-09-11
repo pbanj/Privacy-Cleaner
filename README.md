@@ -49,7 +49,6 @@ To safely push data to Google Sheets without exposing your WordPress site to dir
 3. Delete the default code and paste the script below into the editor:
 
 ```
-javascript
 function doPost(e) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
