@@ -37,7 +37,7 @@ If you use the free [Fluent Snippets](https://wordpress.org/plugins/fluent-snipp
 4. Save and activate the snippet.
 5. Navigate to **Tools > Privacy Cleaner** to configure your settings.
 
-##️ Requirements
+## Requirements
 * **WooCommerce:** Tested and required.
 * **PHP `ZipArchive` Extension:** Required to generate the `.zip` files and apply AES-256 encryption. (Enabled by default on 99% of modern web hosts).
 
@@ -118,5 +118,16 @@ Even though the archives are AES-256 encrypted, you should never broadcast custo
 
 
 
+# Pictures  
 
+## Settings:  
 
+![Settings](pictures/Example.jpg)  
+
+## Shortcut:  
+
+![Shortcut](pictures/Shortcut.jpg)  
+
+## Quick Scrub:  
+
+![QuickScrub](pictures/QuickScrub.jpg)  
